@@ -4,8 +4,8 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
-#include <ranges>
 #include <format>
+#include <ranges>
 #include "BitIO.h"
 #include "model.h"
 #include <bitset>
@@ -16,22 +16,22 @@ const char* usage = "inputFile outputFile\n";
 //****************************************************************************************************
 //buildModel function and all its dependencies	
 
-void scaleCounts(unsigned counts[]) {
-	for (auto index : std::ranges::iota_view(0, 256)) {
+void scaleCounts(unsigned char counts[]) {
+	for (unsigned char index : std::ranges::iota_view(0, 256)) {
 		if (counts[index] > 0)
 			counts[index] = (counts[index] + 1) / 2;
 	}
 }
 																						
-void countBytes(std::fstream& input, unsigned counts[]) {	
+void countBytes(std::fstream& input, unsigned char counts[]) {	
 	unsigned total{ 1 };
-	unsigned scale{};
+	USHORT scale{};
 	char ch{};
 	for (int i = 0; i < 256; ++i)
 		counts[i] = 0;																															
 	while (input.get(ch)) {
-		counts[(int)ch]++;
-		if (counts[(int)ch] == 256)
+		counts[int(ch)]++;
+		if (counts[int(ch)] == 255)
 			scaleCounts(counts);
 	}						
 	//input.seekg(0);
@@ -51,8 +51,8 @@ void countBytes(std::fstream& input, unsigned counts[]) {
 		counts[i] /= scale;
 }																						
 	
-void outputCounts(std::fstream& output, unsigned counts[]) {
-	for (auto index : std::ranges::iota_view(0, 256)) {
+void outputCounts(std::fstream& output, unsigned char counts[]) {
+	for (unsigned char index : std::ranges::iota_view(0, 256)) {
 		if (counts[index] > 0) {
 			output.put(counts[index]);
 			output.put(index);
@@ -62,7 +62,7 @@ void outputCounts(std::fstream& output, unsigned counts[]) {
 }
 																						
 void buildModel(std::fstream& input, std::fstream& output) {							
-	unsigned counts[256];															
+	unsigned char counts[256];															
 	countBytes(input, counts);																												
 	buildTotals(counts);		
 	outputCounts(output, counts);
@@ -77,7 +77,7 @@ void convertIntToSymbol(int c, Symbol& s) {
 }
 
 void encodeSymbol(std::unique_ptr<stl::BitFile>& output, Symbol& s, USHORT& low, USHORT& high, USHORT& underflowBits) {
-	long range = (high - low) + 1;
+	unsigned long range = (high - low) + 1;
 	high = low + static_cast<USHORT>((range * s.high_count) / s.scale - 1);
 	low = low + static_cast<USHORT>((range * s.low_count) / s.scale);
 	//the following loop churns out new bits until high and low are far enough apart to have stabilized
@@ -90,7 +90,7 @@ void encodeSymbol(std::unique_ptr<stl::BitFile>& output, Symbol& s, USHORT& low,
 				underflowBits--;
 			}
 		}
-		//if low second MSB is 1 and high second MSB is 0, and underflow is about to occur
+		//if low first and second MSBs are 01 and high first and second MSBs are 10, and underflow is about to occur
 		else if ((low & 0x4000) && !(high & 0x4000)) {
 			underflowBits++;
 			//toggle the second MSB in both low and high.
@@ -99,7 +99,6 @@ void encodeSymbol(std::unique_ptr<stl::BitFile>& output, Symbol& s, USHORT& low,
 			low &=  ~(1 << 14);
 		}
 		else {
-			//printf("Calling here now\n");
 			return;
 		}
 		low <<= 1;
@@ -108,11 +107,11 @@ void encodeSymbol(std::unique_ptr<stl::BitFile>& output, Symbol& s, USHORT& low,
 	}
 }
 
-void flushArithmeticEncoder(std::unique_ptr<stl::BitFile>& output, USHORT low, USHORT& underflowBits) {
-	stl::outputBit(output, low & 0x4000);
+void flushArithmeticEncoder(std::unique_ptr<stl::BitFile>& output, USHORT high, USHORT& underflowBits) {
+	stl::outputBit(output, high & 0x8000);
 	++underflowBits;
 	while (underflowBits > 0) {
-		stl::outputBit(output, ~low & 0x4000);
+		stl::outputBit(output, ~high & 0x8000);
 		underflowBits--;
 	}
 }
@@ -128,6 +127,6 @@ void compressFile(std::fstream& input, std::unique_ptr<stl::BitFile>& output) {
 	}
 	convertIntToSymbol(END_OF_STREAM, s);
 	encodeSymbol(output, s, low, high, underflowBits);
-	flushArithmeticEncoder(output, low, underflowBits);
+	flushArithmeticEncoder(output, high, underflowBits);
 	stl::outputBits(output, 0L, 16);
 }

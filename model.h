@@ -10,11 +10,11 @@ struct Symbol {
 	USHORT scale;
 };
 
-short int totals[258];
+USHORT totals[258];
 
-void buildTotals(unsigned counts[]) {
+void buildTotals(unsigned char counts[]) {
 	totals[0] = 0;
-	for (auto index : std::ranges::iota_view(0, END_OF_STREAM)) {
+	for (unsigned char index : std::ranges::iota_view(0, END_OF_STREAM)) {
 		totals[index + 1] = totals[index] + counts[index];
 	}
 	totals[END_OF_STREAM + 1] = totals[END_OF_STREAM] + 1;

@@ -12,7 +12,7 @@
 
 
 void inputCounts(std::fstream& input) {
-	unsigned counts[256];
+	unsigned char counts[256];
 	memset(counts, 0, sizeof(counts));
 	char c{};
 	char count{};
@@ -39,7 +39,7 @@ void getSymbolScale(Symbol& s) {
 long getCurrentIndex(Symbol& s, USHORT low, USHORT high, USHORT code) {
 	long range{ high - low + 1 };
 	long index = (long)(((code - low) + 1) * s.scale - 1) / range;
-	printf("%i\n", index);
+	//printf("%i\n", index);
 	return index;
 }
 
